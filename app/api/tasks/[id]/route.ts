@@ -1,98 +1,79 @@
 import { NextResponse } from 'next/server'
 import type { Task } from '@/lib/types'
-import { getTaskById, updateTask, deleteTask } from '@/lib/db'
+
+let tasks: Task[]
+
+// Initialize tasks from JSONPlaceholder if empty
+async function getTasks() {
+    try {
+        const response = await fetch('http://localhost:3001/api/tasks', {
+            method: "GET"
+        })
+        if (!response.ok) throw new Error('Failed to fetch tasks from api')
+        tasks = await response.json()
+    } catch (error) {
+        console.error('Error getting tasks:', error)
+    }
+}
+
 
 // GET /api/tasks/[id]
 export async function GET(
     request: Request,
     { params }: { params: { id: string } }
 ) {
-    try {
-        const id = parseInt(params.id)
-        if (isNaN(id)) {
-            return NextResponse.json(
-                { error: 'Invalid task ID' },
-                { status: 400 }
-            )
-        }
+    await getTasks()
+    const id = parseInt(params.id)
+    const task = tasks.find(t => t.id === id)
 
-        const task = await getTaskById(id)
-        if (!task) {
-            return NextResponse.json(
-                { error: 'Task not found' },
-                { status: 404 }
-            )
-        }
-
-        return NextResponse.json(task)
-    } catch (error) {
-        console.error('Error fetching task:', error)
-        return NextResponse.json(
-            { error: 'Failed to fetch task' },
-            { status: 500 }
-        )
+    if (!task) {
+        return new NextResponse('Task not found', { status: 404 })
     }
+
+    return NextResponse.json(task)
 }
 
 // PATCH /api/tasks/[id]
 export async function PATCH(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: { id: number } }
 ) {
-    try {
-        const id = parseInt(params.id)
-        if (isNaN(id)) {
-            return NextResponse.json(
-                { error: 'Invalid task ID' },
-                { status: 400 }
-            )
-        }
+    const body = await request.json()
+    await getTasks()
+    const { id } = await params
+    const taskIndex = tasks.findIndex(t => t.id == id)
 
-        const updates = await request.json()
-        const updatedTask = await updateTask(id, updates)
+    console.log(id, tasks[5].id, taskIndex)
+
+    if (taskIndex === -1) {
+        return new NextResponse('Task not found', { status: 404 })
+    }
+
+    try {
+        const updates = await body
+        const updatedTask = { ...tasks[taskIndex], ...updates }
+        tasks[taskIndex] = updatedTask
+
         return NextResponse.json(updatedTask)
     } catch (error) {
         console.error('Error updating task:', error)
-        if (error instanceof Error && error.message === 'Task not found') {
-            return NextResponse.json(
-                { error: 'Task not found' },
-                { status: 404 }
-            )
-        }
-        return NextResponse.json(
-            { error: 'Failed to update task' },
-            { status: 500 }
-        )
+        return new NextResponse('Failed to update task', { status: 400 })
     }
 }
 
 // DELETE /api/tasks/[id]
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: { id: number } }
 ) {
-    try {
-        const id = parseInt(params.id)
-        if (isNaN(id)) {
-            return NextResponse.json(
-                { error: 'Invalid task ID' },
-                { status: 400 }
-            )
-        }
+    await getTasks()
+    const { id } = await params
+    const taskIndex = tasks.findIndex(t => t.id == id)
 
-        await deleteTask(id)
-        return new NextResponse(null, { status: 204 })
-    } catch (error) {
-        console.error('Error deleting task:', error)
-        if (error instanceof Error && error.message === 'Task not found') {
-            return NextResponse.json(
-                { error: 'Task not found' },
-                { status: 404 }
-            )
-        }
-        return NextResponse.json(
-            { error: 'Failed to delete task' },
-            { status: 500 }
-        )
+    if (taskIndex === -1) {
+        return new NextResponse('Task not found', { status: 404 })
     }
+
+    tasks = tasks.filter(t => t.id !== id)
+    return new NextResponse(null, { status: 204 })
 } 

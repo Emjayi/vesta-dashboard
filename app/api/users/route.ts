@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server'
 import type { User } from '@/lib/types'
-import { getAllUsers, createUser } from '@/lib/db'
+
+// In-memory storage for users
+let users: User[] = []
 
 // GET /api/users
 export async function GET() {
     try {
-        const users = await getAllUsers()
+        // If we have no users, fetch from JSONPlaceholder
+        if (users.length === 0) {
+            const response = await fetch('https://jsonplaceholder.typicode.com/users')
+            if (!response.ok) throw new Error('Failed to fetch users from JSONPlaceholder')
+            users = await response.json()
+            console.log("users: ", users.length)
+        }
         return NextResponse.json(users)
     } catch (error) {
         console.error('Error fetching users:', error)
@@ -20,21 +28,12 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const userData = await request.json()
-        // Validation: require name and email
-        if (!userData.name || typeof userData.name !== 'string' || !userData.name.trim()) {
-            return NextResponse.json(
-                { error: 'Name is required' },
-                { status: 400 }
-            )
+        const newId = users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1
+        const newUser: User = {
+            id: newId,
+            ...userData,
         }
-        if (!userData.email || typeof userData.email !== 'string' || !userData.email.trim()) {
-            return NextResponse.json(
-                { error: 'Email is required' },
-                { status: 400 }
-            )
-        }
-
-        const newUser = await createUser(userData)
+        users.push(newUser)
         return NextResponse.json(newUser, { status: 201 })
     } catch (error) {
         console.error('Error creating user:', error)

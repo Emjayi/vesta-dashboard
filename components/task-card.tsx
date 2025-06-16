@@ -91,7 +91,7 @@ function TaskCardContent({ task }: { task: Task }) {
                   "font-medium transition-all duration-200",
                   task.completed && "line-through text-muted-foreground"
                 )}>
-                  {task.title}
+                  {task.title} as
                 </h3>
               </div>
               <div className="flex items-center gap-2">

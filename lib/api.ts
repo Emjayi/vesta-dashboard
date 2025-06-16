@@ -1,23 +1,33 @@
-import useSWR, { mutate } from 'swr';
-import type { Task, User, CreateTaskData, UpdateTaskData } from '@/lib/types';
+import useSWR from 'swr';
+import type { Task, User } from '@/lib/types';
 
-const SITE_URL = 'https://localhost:3001'
+// Remove server-side cache since we're using SWR for client-side caching
+function getBaseUrl() {
+  return 'http://localhost:3001'
+}
+
+const TASKS_URL = `${getBaseUrl()}/api/tasks`;
+const USERS_URL = `${getBaseUrl()}/api/users`;
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
-// API endpoints
-const TASKS_ENDPOINT = '/api/tasks';
-const USERS_ENDPOINT = '/api/users';
-
-// Direct data fetching functions for store use
+// Direct data fetching functions for server actions
 export async function fetchTasks(): Promise<Task[]> {
-  const response = await fetch(TASKS_ENDPOINT);
-  if (!response.ok) throw new Error('Failed to fetch tasks');
-  return response.json();
+  try {
+    const response = await fetch(`${getBaseUrl()}/api/tasks`, {
+      method: "GET",
+      cache: 'no-store' // Ensure we always get fresh data
+    })
+    if (!response.ok) throw new Error('Failed to fetch tasks')
+    return response.json()
+  } catch (error) {
+    console.error('Error fetching tasks:', error)
+    return []
+  }
 }
 
 export async function fetchUsers(): Promise<User[]> {
-  const response = await fetch(USERS_ENDPOINT);
+  const response = await fetch(USERS_URL);
   if (!response.ok) throw new Error('Failed to fetch users');
   return response.json();
 }
@@ -30,92 +40,53 @@ export async function fetchTasksWithUsers(): Promise<{ tasks: Task[], users: Use
   return { tasks, users };
 }
 
-// Task mutations
-export async function createTask(taskData: CreateTaskData): Promise<Task> {
-  const response = await fetch(TASKS_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(taskData)
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to create task');
-  }
-
-  const newTask = await response.json();
-
-  // Update the cache with the new task
-  await mutate(TASKS_ENDPOINT, async (tasks: Task[] = []) => {
-    return [newTask, ...tasks];
-  }, { revalidate: false });
-
-  return newTask;
-}
-
-export async function updateTask(id: number, updates: Partial<Task>): Promise<Task> {
-  const response = await fetch(`${TASKS_ENDPOINT}/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates)
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to update task');
-  }
-
-  const updatedTask = await response.json();
-
-  // Update the cache with the modified task
-  await mutate(TASKS_ENDPOINT, async (tasks: Task[] = []) => {
-    return tasks.map(task => task.id === id ? updatedTask : task);
-  }, { revalidate: false });
-
-  return updatedTask;
-}
-
-export async function deleteTask(id: number): Promise<void> {
-  const response = await fetch(`${TASKS_ENDPOINT}/${id}`, {
-    method: 'DELETE'
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to delete task');
-  }
-
-  // Update the cache by removing the deleted task
-  await mutate(TASKS_ENDPOINT, async (tasks: Task[] = []) => {
-    return tasks.filter(task => task.id !== id);
-  }, { revalidate: false });
-}
-
-// SWR hooks
+// React hooks for components
 export function useTasks() {
-  const { data, error, isLoading } = useSWR<Task[]>(TASKS_ENDPOINT, fetcher, {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    dedupingInterval: 5000
+  const { data, error, mutate } = useSWR<Task[]>(TASKS_URL, fetcher, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true
   });
-
   return {
-    data,
-    error,
-    isLoading,
-    createTask,
-    updateTask,
-    deleteTask
+    tasks: data || [],
+    isLoading: !error && !data,
+    isError: error,
+    mutate,
   };
 }
 
 export function useUsers() {
-  const { data, error, isLoading } = useSWR<User[]>(USERS_ENDPOINT, fetcher, {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    dedupingInterval: 5000
-  });
-
+  const { data, error, mutate } = useSWR<User[]>(USERS_URL, fetcher);
   return {
-    data,
-    error,
-    isLoading
+    users: data || [],
+    isLoading: !error && !data,
+    isError: error,
+    mutate,
   };
+}
+
+export async function createTask(task: Omit<Task, 'id'>) {
+  const res = await fetch('http://localhost:3001/api/tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(task),
+    cache: 'no-store'
+  });
+  return res.json();
+}
+
+export async function updateTask(id: number, updates: Partial<Task>) {
+  const res = await fetch(`http://localhost:3001/api/tasks/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+    cache: 'no-store'
+  });
+  return res.json();
+}
+
+export async function deleteTask(id: number) {
+  await fetch(`http://localhost:3001/api/tasks/${id}`, {
+    method: 'DELETE',
+    cache: 'no-store'
+  });
 }

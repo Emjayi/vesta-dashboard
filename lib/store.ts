@@ -2,8 +2,6 @@ import { create } from "zustand"
 import { fetchTasksWithUsers } from "./api"
 import { createTask as createTaskAction, updateTask as updateTaskAction, deleteTask as deleteTaskAction } from "./actions"
 import type { Task, User, TaskFilters } from "@/lib/types"
-import { useTasks, useUsers } from "./api"
-import React from "react"
 
 interface TaskStore {
   tasks: Task[]
@@ -19,13 +17,23 @@ interface TaskStore {
   updateTask: (id: number, updates: Partial<Task>) => Promise<void>
   deleteTask: (id: number) => Promise<void>
   setFilters: (filters: TaskFilters) => void
-  applyFilters: (tasks: Task[]) => void
+  applyFilters: () => void
 }
 
 const STORAGE_KEYS = {
   TASKS: 'task-management:tasks',
   USERS: 'task-management:users',
   FILTERS: 'task-management:filters',
+}
+
+// Save tasks to localStorage
+const saveTasks = (tasks: Task[]) => {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks))
+  } catch (e) {
+    console.error('Error saving tasks:', e)
+  }
 }
 
 // Load filters from localStorage
@@ -37,6 +45,17 @@ const loadFilters = (): TaskFilters => {
   } catch (e) {
     console.error('Error loading filters:', e)
     return {}
+  }
+}
+const loadtasks = (): Task[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.TASKS)
+    console.log("get the tasks:", stored)
+    return stored ? JSON.parse(stored) : []
+  } catch (e) {
+    console.error('Error loading filters:', e)
+    return []
   }
 }
 
@@ -51,7 +70,7 @@ const saveFilters = (filters: TaskFilters) => {
 }
 
 export const useTaskStore = create<TaskStore>((set, get) => ({
-  tasks: [],
+  tasks: loadtasks(),
   users: [],
   loading: false,
   error: null,
@@ -66,6 +85,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       initialized: state.initialized,
       loading: state.loading
     })
+
 
     if (state.initialized && state.tasks.length > 0) {
       console.log("Store already initialized with tasks, skipping")
@@ -86,7 +106,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       // Apply saved filters after loading tasks
       const filters = loadFilters()
       set({ filters })
-      get().applyFilters(newTasks)
+      get().applyFilters()
 
       console.log("Store initialized successfully:", {
         tasksCount: newTasks.length,
@@ -107,8 +127,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     saveFilters(filters)
   },
 
-  applyFilters: (tasks: Task[]) => {
-    const { filters } = get()
+  applyFilters: () => {
+    const { tasks, filters } = get()
     let filtered = [...tasks]
 
     // Apply search filter
@@ -162,6 +182,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           newTaskId: newTask.id,
           totalTasks: updatedTasks.length
         })
+        saveTasks(updatedTasks)
         return {
           tasks: updatedTasks,
           loading: false
@@ -189,6 +210,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const updatedTask = { ...tasks[taskIndex], ...updates }
     set(state => {
       const updatedTasks = state.tasks.map(t => t.id === id ? updatedTask : t)
+      saveTasks(updatedTasks)
       // Apply filters immediately after updating tasks
       let filtered = [...updatedTasks]
 
@@ -268,6 +290,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     // Optimistic update
     set(state => {
       const updatedTasks = state.tasks.filter(t => t.id !== id)
+      saveTasks(updatedTasks)
       console.log("Optimistic delete applied:", {
         taskId: id,
         totalTasks: updatedTasks.length
@@ -296,47 +319,3 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     }
   }
 }))
-
-// Custom hook to combine SWR data with store filters
-export function useFilteredTasks() {
-  const { data: tasks, error, isLoading } = useTasks()
-  const { filters, setFilters, applyFilters, filteredTasks } = useTaskStore()
-
-  // Apply filters whenever tasks or filters change
-  React.useEffect(() => {
-    if (tasks) {
-      applyFilters(tasks)
-    }
-  }, [tasks, filters])
-
-  return {
-    tasks: filteredTasks,
-    isLoading,
-    error,
-    filters,
-    setFilters
-  }
-}
-
-// Custom hook to combine SWR data with store
-export function useTaskData() {
-  const { data: tasks, error: tasksError, isLoading: tasksLoading } = useTasks()
-  const { data: users, error: usersError, isLoading: usersLoading } = useUsers()
-  const { filters, setFilters, applyFilters, filteredTasks } = useTaskStore()
-
-  // Apply filters whenever tasks or filters change
-  React.useEffect(() => {
-    if (tasks) {
-      applyFilters(tasks)
-    }
-  }, [tasks, filters])
-
-  return {
-    tasks: filteredTasks,
-    users: users || [],
-    isLoading: tasksLoading || usersLoading,
-    error: tasksError || usersError,
-    filters,
-    setFilters
-  }
-}

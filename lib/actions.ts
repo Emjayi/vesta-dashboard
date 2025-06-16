@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import type { CreateTaskData, UpdateTaskData, Task } from "./types"
-import { createTask as dbCreateTask, updateTask as dbUpdateTask, deleteTask as dbDeleteTask } from "./db"
+import { createTask as dbCreateTask, updateTask as dbUpdateTask, deleteTask as dbDeleteTask } from "./api"
 
 export async function createTask(data: CreateTaskData): Promise<{ success: boolean; task?: Task; error?: string }> {
   try {
@@ -12,9 +12,9 @@ export async function createTask(data: CreateTaskData): Promise<{ success: boole
     }
 
     // Revalidate all task-related paths
-    revalidatePath("/")
-    revalidatePath("/admin")
-    revalidatePath("/tasks/[id]")
+    revalidatePath("/", "page")
+    revalidatePath("/admin", "page")
+    revalidatePath("/tasks/[id]", "page")
 
     return { success: true, task }
   } catch (error) {
@@ -36,9 +36,9 @@ export async function updateTask(data: UpdateTaskData): Promise<{ success: boole
     }
 
     // Revalidate all task-related paths
-    revalidatePath("/")
-    revalidatePath("/admin")
-    revalidatePath(`/tasks/${id}`)
+    revalidatePath("/", "page")
+    revalidatePath("/admin", "page")
+    revalidatePath(`/tasks/${id}`, "page")
 
     return { success: true, task }
   } catch (error) {
@@ -55,9 +55,9 @@ export async function deleteTask(id: number): Promise<{ success: boolean; error?
     const success = await dbDeleteTask(id)
 
     // Revalidate all task-related paths
-    revalidatePath("/")
-    revalidatePath("/admin")
-    revalidatePath(`/tasks/${id}`)
+    revalidatePath("/", "page")
+    revalidatePath("/admin", "page")
+    revalidatePath(`/tasks/${id}`, "page")
 
     return { success: true }
   } catch (error) {
