@@ -40,9 +40,7 @@ cd vesta-dashboard
 ### 2. Install Dependencies
 
 ```bash
-npm install
-# or
-yarn
+bun install
 ```
 
 ### 3. Run the Development Server
