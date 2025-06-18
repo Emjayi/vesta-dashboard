@@ -33,7 +33,7 @@ Tasks are initially fetched from a placeholder API and managed entirely on the c
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/vesta-dashboard.git
+git clone https://github.com/Emjayi/vesta-dashboard.git
 cd vesta-dashboard
 ```
 
