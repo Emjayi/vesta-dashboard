@@ -3,7 +3,7 @@ import type { Task, User } from '@/lib/types';
 
 // Remove server-side cache since we're using SWR for client-side caching
 function getBaseUrl() {
-  return 'http://localhost:3001'
+  return 'http://localhost:3000'
 }
 
 const TASKS_URL = `${getBaseUrl()}/api/tasks`;
@@ -14,7 +14,7 @@ const fetcher = (url: string) => fetch(url).then(res => res.json());
 // Direct data fetching functions for server actions
 export async function fetchTasks(): Promise<Task[]> {
   try {
-    const response = await fetch(`${getBaseUrl()}/api/tasks`, {
+    const response = await fetch(TASKS_URL, {
       method: "GET",
       cache: 'no-store' // Ensure we always get fresh data
     })
@@ -65,7 +65,7 @@ export function useUsers() {
 }
 
 export async function createTask(task: Omit<Task, 'id'>) {
-  const res = await fetch('http://localhost:3001/api/tasks', {
+  const res = await fetch(TASKS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(task),
@@ -75,7 +75,7 @@ export async function createTask(task: Omit<Task, 'id'>) {
 }
 
 export async function updateTask(id: number, updates: Partial<Task>) {
-  const res = await fetch(`http://localhost:3001/api/tasks/${id}`, {
+  const res = await fetch(`${TASKS_URL}/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
@@ -85,7 +85,7 @@ export async function updateTask(id: number, updates: Partial<Task>) {
 }
 
 export async function deleteTask(id: number) {
-  await fetch(`http://localhost:3001/api/tasks/${id}`, {
+  await fetch(`${TASKS_URL}/${id}`, {
     method: 'DELETE',
     cache: 'no-store'
   });

@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { fetchTasksWithUsers } from "./api"
-import { createTask as createTaskAction, updateTask as updateTaskAction, deleteTask as deleteTaskAction } from "./actions"
+import { createTask as createTaskAction, updateTask as updateTaskAction, deleteTask as deleteTaskAction } from "@/lib/actions"
 import type { Task, User, TaskFilters } from "@/lib/types"
 
 interface TaskStore {
@@ -47,6 +47,29 @@ const loadFilters = (): TaskFilters => {
     return {}
   }
 }
+
+// Save users to localStorage
+const saveUsers = (users: User[]) => {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users))
+  } catch (e) {
+    console.error('Error saving users:', e)
+  }
+}
+
+// Load users from localStorage
+const loadUsers = (): User[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.USERS)
+    return stored ? JSON.parse(stored) : []
+  } catch (e) {
+    console.error('Error loading users:', e)
+    return []
+  }
+}
+
 const loadtasks = (): Task[] => {
   if (typeof window === 'undefined') return []
   try {
@@ -71,7 +94,7 @@ const saveFilters = (filters: TaskFilters) => {
 
 export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: loadtasks(),
-  users: [],
+  users: loadUsers(),
   loading: false,
   error: null,
   initialized: false,
@@ -82,19 +105,25 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const state = get()
     console.log("Store initialization started:", {
       hasTasks: state.tasks.length > 0,
+      hasUsers: state.users.length > 0,
       initialized: state.initialized,
       loading: state.loading
     })
 
-
-    if (state.initialized && state.tasks.length > 0) {
-      console.log("Store already initialized with tasks, skipping")
+    // If we have both tasks and users in localStorage, we can skip fetching
+    if (state.initialized && state.tasks.length > 0 && state.users.length > 0) {
+      console.log("Store already initialized with tasks and users, skipping")
+      get().applyFilters() // Apply filters to the loaded tasks
       return
     }
 
     set({ loading: true, error: null })
     try {
       const { tasks: newTasks, users: newUsers } = await fetchTasksWithUsers()
+
+      // Save both tasks and users to localStorage
+      saveTasks(newTasks)
+      saveUsers(newUsers)
 
       set({
         tasks: newTasks,
@@ -178,11 +207,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
       set(state => {
         const updatedTasks = [newTask, ...state.tasks]
-        console.log("Updating store with new task:", {
-          newTaskId: newTask.id,
-          totalTasks: updatedTasks.length
-        })
-        saveTasks(updatedTasks)
+        saveTasks(updatedTasks) // Save to localStorage
         return {
           tasks: updatedTasks,
           loading: false
@@ -210,7 +235,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const updatedTask = { ...tasks[taskIndex], ...updates }
     set(state => {
       const updatedTasks = state.tasks.map(t => t.id === id ? updatedTask : t)
-      saveTasks(updatedTasks)
+      saveTasks(updatedTasks) // Save to localStorage
       // Apply filters immediately after updating tasks
       let filtered = [...updatedTasks]
 
@@ -253,6 +278,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       // Revert on error
       set(state => {
         const revertedTasks = state.tasks.map(t => t.id === id ? tasks[taskIndex] : t)
+        saveTasks(revertedTasks) // Save reverted state to localStorage
         // Re-apply filters after reverting
         let filtered = [...revertedTasks]
         if (state.filters.search) {
@@ -290,7 +316,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     // Optimistic update
     set(state => {
       const updatedTasks = state.tasks.filter(t => t.id !== id)
-      saveTasks(updatedTasks)
+      saveTasks(updatedTasks) // Save to localStorage
       console.log("Optimistic delete applied:", {
         taskId: id,
         totalTasks: updatedTasks.length
@@ -309,6 +335,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       // Revert on error
       set(state => {
         const revertedTasks = [...state.tasks.slice(0, taskIndex), tasks[taskIndex], ...state.tasks.slice(taskIndex)]
+        saveTasks(revertedTasks) // Save reverted state to localStorage
         console.log("Reverting task deletion:", {
           taskId: id,
           totalTasks: revertedTasks.length

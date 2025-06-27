@@ -6,7 +6,7 @@ let tasks: Task[]
 // Initialize tasks from JSONPlaceholder if empty
 async function getTasks() {
     try {
-        const response = await fetch('http://localhost:3001/api/tasks', {
+        const response = await fetch('http://localhost:3000/api/tasks', {
             method: "GET"
         })
         if (!response.ok) throw new Error('Failed to fetch tasks from api')
