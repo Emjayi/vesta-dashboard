@@ -65,7 +65,7 @@ export function useUsers() {
 }
 
 export async function createTask(task: Omit<Task, 'id'>) {
-  const res = await fetch(TASKS_URL, {
+  const res = await fetch('http://localhost:3000/api/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(task),
@@ -75,7 +75,7 @@ export async function createTask(task: Omit<Task, 'id'>) {
 }
 
 export async function updateTask(id: number, updates: Partial<Task>) {
-  const res = await fetch(`${TASKS_URL}/${id}`, {
+  const res = await fetch(`http://localhost:3000/api/tasks/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
@@ -85,7 +85,7 @@ export async function updateTask(id: number, updates: Partial<Task>) {
 }
 
 export async function deleteTask(id: number) {
-  await fetch(`${TASKS_URL}/${id}`, {
+  await fetch(`http://localhost:3000/api/tasks/${id}`, {
     method: 'DELETE',
     cache: 'no-store'
   });
