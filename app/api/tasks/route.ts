@@ -11,12 +11,9 @@ export async function GET() {
             const response = await fetch('https://jsonplaceholder.typicode.com/todos?_limit=200')
             if (!response.ok) throw new Error('Failed to fetch tasks from JSONPlaceholder')
             tasks = await response.json()
-            console.log("tasks: ", tasks?.length)
         } catch (error) {
             console.error('Error initializing tasks:', error)
         }
-    } else {
-        console.log("already has: ", tasks.length)
     }
     return NextResponse.json(tasks)
 }

@@ -42,9 +42,6 @@ export async function PATCH(
     await getTasks()
     const { id } = await params
     const taskIndex = tasks.findIndex(t => t.id == id)
-
-    console.log(id, tasks[5].id, taskIndex)
-
     if (taskIndex === -1) {
         return new NextResponse('Task not found', { status: 404 })
     }
