@@ -207,9 +207,29 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
       set(state => {
         const updatedTasks = [newTask, ...state.tasks]
+        // Apply filters to the updated tasks
+        let filtered = [...updatedTasks]
+        const { filters } = state
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase()
+          filtered = filtered.filter(task =>
+            task.title.toLowerCase().includes(searchLower)
+          )
+        }
+        if (filters.status && filters.status !== 'all') {
+          filtered = filtered.filter(task =>
+            filters.status === 'completed' ? task.completed : !task.completed
+          )
+        }
+        if (filters.userIds && filters.userIds.length > 0) {
+          filtered = filtered.filter(task =>
+            filters.userIds?.includes(task.userId)
+          )
+        }
         saveTasks(updatedTasks) // Save to localStorage
         return {
           tasks: updatedTasks,
+          filteredTasks: filtered,
           loading: false
         }
       })
